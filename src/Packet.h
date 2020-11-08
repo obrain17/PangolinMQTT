@@ -39,7 +39,7 @@ class Packet {
     friend class PangolinMQTT;
     protected:
         static  uint16_t         _nextId;
-                uint16_t         _id=0; 
+                uint16_t         _id=0;
                 uint8_t          _hdrAdjust;
                 bool             _hasId=false;
                 uint8_t          _controlcode;
@@ -60,12 +60,12 @@ class Packet {
                 std::vector<uint8_t> _rl(uint32_t X);
                 void             _shortGarbage();
                 uint8_t*         _stringblock(const std::string& s){ return _mem(s.data(),s.size()); }
-            
+
     public:
         static  PANGO_PACKET_MAP  _outbound;
         static  PANGO_PACKET_MAP  _inbound;
 
-        Packet(uint8_t controlcode,uint8_t adj=0,bool hasid=false): _controlcode(controlcode),_hdrAdjust(adj),_hasId(hasid){}
+        Packet(uint8_t controlcode,uint8_t adj=0,bool hasid=false): _hdrAdjust(adj),_hasId(hasid),_controlcode(controlcode){}
 
         static  void             ACKoutbound(uint16_t id){ /*PANGO_PRINT("ACK O/B %d\n",id);*/ _ACK(&_outbound,id,false); }
 };
@@ -96,13 +96,13 @@ class PubrelPacket: public Packet {
 };
 class PubcompPacket: public Packet {
     public:
-        PubcompPacket(uint16_t id): Packet(PUBCOMP) { /*PANGO_PRINT("OUT PUBCOMP FOR ID %d\n",id);*/ _idGarbage(id); }  
+        PubcompPacket(uint16_t id): Packet(PUBCOMP) { /*PANGO_PRINT("OUT PUBCOMP FOR ID %d\n",id);*/ _idGarbage(id); }
 };
 class SubscribePacket: public Packet {
         std::string          _topic;
     public:
         uint8_t         _qos;
-        SubscribePacket(const std::string& topic,uint8_t qos): _topic(topic),_qos(qos),Packet(SUBSCRIBE,1,true) {
+        SubscribePacket(const std::string& topic,uint8_t qos): Packet(SUBSCRIBE,1,true),_topic(topic),_qos(qos) {
             _id=++_nextId;
             _begin=[this]{ _stringblock(CSTR(_topic)); };
             _end=[this](uint8_t* p,mb* base){ *p=_qos; };
@@ -112,7 +112,7 @@ class SubscribePacket: public Packet {
 class UnsubscribePacket: public Packet {
         std::string          _topic;
     public:
-        UnsubscribePacket(const std::string& topic): _topic(topic),Packet(UNSUBSCRIBE,0,true) {
+        UnsubscribePacket(const std::string& topic): Packet(UNSUBSCRIBE,0,true),_topic(topic) {
             _id=++_nextId;
             _begin=[this]{ _stringblock(CSTR(_topic)); };
             _build();

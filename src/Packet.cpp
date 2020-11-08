@@ -50,9 +50,9 @@ void Packet::_build(bool hold){
     if(_hasId) sx+=2;
     std::vector<uint8_t> rl=_rl(sx);
     sx+=1+rl.size();
- 
+
     ADFP snd_buf=m.data=(static_cast<ADFP>(malloc(sx))); // Not a memleak - will be free'd when TCP ACKs it.
-    
+
     *snd_buf++=_controlcode;
     for(auto const& r:rl) *snd_buf++=r;
     if(_hasId) snd_buf=_poke16(snd_buf,_id);
@@ -162,15 +162,16 @@ ConnectPacket::ConnectPacket(): Packet(CONNECT,10){
     };
     _middle=[this](uint8_t* p){
         memcpy(p,&protocol,8);p+=8;
-        return _poke16(p,PangolinMQTT::_keepalive);
+        return _poke16(p,(uint16_t)(PangolinMQTT::_keepalive/1000));
+//        return _poke16(p,PangolinMQTT::_keepalive);
     };
     _build();
 }
 
 PublishPacket::PublishPacket(const char* topic, uint8_t qos, bool retain, uint8_t* payload, size_t length, bool dup,uint16_t givenId):
-    _topic(topic),_qos(qos),_retain(retain),_length(length),_dup(dup),_givenId(givenId),Packet(PUBLISH) {
+    Packet(PUBLISH),_topic(topic),_qos(qos),_retain(retain),_length(length),_dup(dup),_givenId(givenId) {
         if(length < PANGO::LIN->getMaxPayloadSize()){
-            _begin=[this]{ 
+            _begin=[this]{
                 _stringblock(CSTR(_topic));
                 _bs+=_length;
                 byte flags=_retain;
@@ -183,7 +184,7 @@ PublishPacket::PublishPacket(const char* topic, uint8_t qos, bool retain, uint8_
                 }
                 _controlcode|=flags;
             };
-            _end=[this,payload](uint8_t* p,mb* base){ 
+            _end=[this,payload](uint8_t* p,mb* base){
                 uint8_t* p2=_qos ? _poke16(p,_id):p;
                 memcpy(p2,payload,_length);
                 base->qos=_qos;

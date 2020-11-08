@@ -121,7 +121,8 @@ const char* PANGO::_HAL_getUniqueId(){
 
 void PANGO::_ackTCP(size_t len, uint32_t time){
     PANGO_PRINT("TXQ=%d TCP ACK LENGTH=%d\n",TXQ.size(),len);
-    _resetPingTimers();
+//    _resetPingTimers();
+    PANGO::_nPollTicks=0;
     size_t amtToAck=len;
     while(amtToAck){
         if(!TXQ.empty()){
@@ -223,7 +224,7 @@ char* PANGO::payloadToCstring(uint8_t* data,size_t len){
     uint8_t* buf=static_cast<uint8_t*>(malloc(len)); /// CALLER MUST FREE THIS!!!
     memcpy(buf,data,len);
     return (char*) buf;
-};
+}; 
 
 int PANGO::payloadToInt(uint8_t* data,size_t len){
     char* c=payloadToCstring(data,len);

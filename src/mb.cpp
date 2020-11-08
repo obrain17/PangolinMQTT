@@ -26,12 +26,12 @@ SOFTWARE.
 
 PANG_MEM_POOL       mb::pool;
 
-mb::mb(size_t l,uint8_t* d,uint16_t i,ADFP f,bool track): len(l),id(i),data(d),frag(f),managed(track){ // always unmanaged - sould only be called by onData
+mb::mb(size_t l,uint8_t* d,uint16_t i,ADFP f,bool track): managed(track),len(l),data(d),id(i),frag(f){ // always unmanaged - sould only be called by onData
 //    PANGO_PRINT("LONG-WINDED CTOR %08X len=%d managed=%d\n",d,l,managed);
     manage();
 }
 
-mb::mb(ADFP p, bool track): data(p),managed(track) {
+mb::mb(ADFP p, bool track): managed(track),data(p) {
 //    PANGO_PRINT("SKELETON %08X TYPE %s managed=%d\n",p,PANGO::getPktName(p[0]),managed);
     std::pair<uint32_t,uint8_t> remlen=PANGO::_getRemainingLength(&data[1]); // demote
     offset=remlen.second;
@@ -68,7 +68,7 @@ void mb::ack(){
         if((int) frag < 100) return; // some arbitrarily ridiculous max numberof _fragments
         data=frag; // reset data pointer to FIRST fragment, so whole block is freed
         _deriveQos(); // recover original QOS from base fragment
-    } 
+    }
 //    PANGO_PRINT("**** PROTOCOL ACK MB %08X TYPE %02X L=%d I=%d Q=%d F=%08X R=%d\n",data,data[0],len,id,qos,frag,retries);
     if(!(isPub() && qos)) clear();
 //    else PANGO_PRINT("HELD MB %08X TYPE %02X L=%d I=%d Q=%d F=%08X R=%d\n",data,data[0],len,id,qos,frag,retries);

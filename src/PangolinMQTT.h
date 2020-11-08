@@ -177,7 +177,7 @@ class PangolinMQTT {
                std::string         _clientId;
                std::string         _host;
                IPAddress           _ip;
-        static uint16_t            _keepalive;
+        static uint32_t            _keepalive;
         static std::string         _password;
                uint16_t            _port;
                bool                _useIp;
@@ -219,7 +219,7 @@ class PangolinMQTT {
                 void                setCleanSession(bool cleanSession){ _cleanSession = cleanSession; }
                 void                setClientId(const char* clientId){ _clientId = clientId; }
                 void                setCredentials(const char* username, const char* password = nullptr);
-                void                setKeepAlive(uint16_t keepAlive){ _keepalive = PANGO_POLL_RATE * keepAlive; }
+                void                setKeepAlive(uint16_t keepAlive){ _keepalive = 1000 * keepAlive; }
                 void                setServer(IPAddress ip, uint16_t port);
                 void                setServer(const char* host, uint16_t port);
                 void                setWill(const char* topic, uint8_t qos, bool retain, const char* payload = nullptr);

@@ -31,7 +31,7 @@ std::string          PangolinMQTT::_willTopic;
 std::string          PangolinMQTT::_willPayload;
 uint8_t              PangolinMQTT::_willQos;
 bool                 PangolinMQTT::_willRetain;
-uint16_t             PangolinMQTT::_keepalive=15 * PANGO_POLL_RATE; // 10 seconds
+uint32_t             PangolinMQTT::_keepalive=15000; // 15 seconds
 bool                 PangolinMQTT::_cleanSession=true;
 PANGO_cbError        PangolinMQTT::_cbError=nullptr;
 
@@ -91,7 +91,7 @@ void PangolinMQTT::_onDisconnect(int8_t r) {
     }
 }
 
-void PangolinMQTT::_notify(uint8_t e,int info){ 
+void PangolinMQTT::_notify(uint8_t e,int info){
     PANGO_PRINT("NOTIFY e=%d inf=%d\n",e,info);
     if(_cbError) _cbError(e,info);
 }
@@ -110,7 +110,7 @@ void PangolinMQTT::_handlePublish(mb m){
             _hpDespatch(m);
             break;
         case 1:
-            { 
+            {
                 _hpDespatch(m);
                 PubackPacket pap(m.id);
             }
@@ -181,7 +181,7 @@ void PangolinMQTT::_handlePacket(mb m){
             break;
     }
     m.clear();
-} 
+}
 //
 // packet chopper / despatcher
 //
@@ -217,7 +217,7 @@ uint8_t* PangolinMQTT::_packetReassembler(mb m){
 //                    PANGO_PRINT("E-R < m.len RETURN ME=%d\n",charlie);
                     me=charlie;
                 } //else PANGO_PRINT("DEFAULT ME=%d\n",me);
-            } 
+            }
             else {
 //                PANGO_PRINT("DODGED A BULLET!\n");
                 _notify(INBOUND_PUB_TOO_BIG,expecting);
@@ -257,24 +257,30 @@ void PangolinMQTT::_onData(uint8_t* data, size_t len) {
     size_t      N=0;
     PANGO_PRINT("<---- FROM WIRE %s %08X len=%d\n",PANGO::getPktName(data[0]),data,len);
 //    PANGO::dumphex(data,len);
-    PANGO::_resetPingTimers();
+//    PANGO::_resetPingTimers();
+    PANGO::_nSrvTicks=0;
     do {
         p=_packetReassembler(mb(data+len-p,p));
         PANGO::_HAL_feedWatchdog();
     } while (p < data + len);
 }
 
+#define MS_PER_POLL 500   // TCP coarse grained timer shots, which typically occurs twice a second
+
 void PangolinMQTT::_onPoll(AsyncClient* client) {
     if(PANGO::TCP){
-        ++PANGO::_nPollTicks;
-        ++PANGO::_nSrvTicks;
+//        ++PANGO::_nPollTicks;
+//        ++PANGO::_nSrvTicks;
+        PANGO::_nPollTicks += MS_PER_POLL;
+        PANGO::_nSrvTicks += MS_PER_POLL;
 
         if(PANGO::_nSrvTicks > ((_keepalive * 3) / 2)) { // safe headroom
             PANGO_PRINT("T=%u SRV GONE? ka=%d tix=%d\n",millis(),_keepalive,PANGO::_nSrvTicks);
             _onDisconnect(MQTT_SERVER_UNAVAILABLE);
         }
         else {
-            if(PANGO::_nPollTicks > _keepalive){
+//            if(PANGO::_nPollTicks > _keepalive){
+            if(PANGO::_nPollTicks > ((_keepalive * 3) / 4)){  // optional with some headroom
                 Packet::_resendPartialTxns();
                 if(!(PANGO::TXQ.size())) PingPacket pp{}; 
             }
@@ -289,7 +295,7 @@ void PangolinMQTT::connect() {
     if(_cleanSession) _cleanStart();
     PANGO::TCP=new AsyncClient;
     PANGO::TCP->setNoDelay(true);
-    PANGO::TCP->onConnect([this](void* obj, AsyncClient* c) { 
+    PANGO::TCP->onConnect([this](void* obj, AsyncClient* c) {
 #if ASYNC_TCP_SSL_ENABLED
     if(PANGO::_secure) {
         SSL* clientSsl = PANGO::TCP->getSSL();
@@ -303,7 +309,7 @@ void PangolinMQTT::connect() {
     }); // *NOT* A MEMORY LEAK! :)
     PANGO::TCP->onDisconnect([this](void* obj, AsyncClient* c) { PANGO_PRINT("TCP CHOPPED US!\n"); _onDisconnect(TCP_DISCONNECTED); });
     PANGO::TCP->onError([this](void* obj, AsyncClient* c,int error) { PANGO_PRINT("TCP_ERROR %d\n",error); _onDisconnect(error); });
-    PANGO::TCP->onAck([this](void* obj, AsyncClient* c,size_t len, uint32_t time){ PANGO::_ackTCP(len,time); }); 
+    PANGO::TCP->onAck([this](void* obj, AsyncClient* c,size_t len, uint32_t time){ PANGO::_ackTCP(len,time); });
     PANGO::TCP->onData([this](void* obj, AsyncClient* c, void* data, size_t len) { _onData(static_cast<uint8_t*>(data), len); });
     PANGO::TCP->onPoll([this](void* obj, AsyncClient* c) { _onPoll(c); });
 // tidy this + whole _useIP bollocks
